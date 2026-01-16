@@ -1,0 +1,7 @@
+ALTER TABLE dw.dim_tenant
+  ADD COLUMN IF NOT EXISTS customer_name TEXT,
+  ADD COLUMN IF NOT EXISTS customer_type TEXT,
+  ADD COLUMN IF NOT EXISTS country TEXT,
+  ADD COLUMN IF NOT EXISTS industry TEXT,
+  ADD COLUMN IF NOT EXISTS contract_start_date DATE,
+  ADD COLUMN IF NOT EXISTS account_owner TEXT;

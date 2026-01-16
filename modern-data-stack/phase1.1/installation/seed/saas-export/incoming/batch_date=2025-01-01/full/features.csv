@@ -1,0 +1,20 @@
+feature_id,name,category,introduced_at
+f001,Feature_001,Editor,2024-12-14 00:00:00
+f002,Feature_002,AI,2024-12-21 00:00:00
+f003,Feature_003,Catalog,2024-11-17 00:00:00
+f004,Feature_004,Editor,2024-12-10 00:00:00
+f005,Feature_005,Editor,2024-12-12 00:00:00
+f006,Feature_006,Editor,2024-12-19 00:00:00
+f007,Feature_007,Catalog,2024-12-03 00:00:00
+f008,Feature_008,AI,2024-11-24 00:00:00
+f009,Feature_009,Governance,2024-11-29 00:00:00
+f010,Feature_010,AI,2024-11-28 00:00:00
+f011,Feature_011,Governance,2024-11-08 00:00:00
+f012,Feature_012,Catalog,2024-10-24 00:00:00
+f013,Feature_013,Catalog,2024-10-11 00:00:00
+f014,Feature_014,AI,2024-11-08 00:00:00
+f015,Feature_015,AI,2024-12-03 00:00:00
+f016,Feature_016,Governance,2024-11-27 00:00:00
+f017,Feature_017,Governance,2024-12-17 00:00:00
+f018,Feature_018,Editor,2024-10-16 00:00:00
+f999,Feature_999,,2024-12-21 00:00:00
