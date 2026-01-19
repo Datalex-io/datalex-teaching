@@ -1,5 +1,6 @@
--- Teacher seed (reference data)
--- Example only: replace with your canonical list.
+-- seed (reference data)
+
+TRUNCATE TABLE dw.dim_feature;
 
 INSERT INTO dw.dim_feature(feature_id, name, category, introduced_at)
 VALUES
