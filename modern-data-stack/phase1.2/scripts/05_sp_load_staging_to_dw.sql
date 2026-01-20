@@ -44,7 +44,7 @@ BEGIN
   ),
   dups AS (
     SELECT * FROM ranked WHERE rn > 1
-  ),
+  )
   INSERT INTO dq.rejected_rows(run_id, source_table, reject_reason, reject_severity, record_pk, record_payload)
   SELECT v_run_id, 'staging.tenant', 'DUPLICATE_TENANT_ID', 'warn', tenant_id::TEXT, to_jsonb(dups)
   FROM dups;

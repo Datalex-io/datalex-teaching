@@ -1,4 +1,5 @@
 -- Run the pipeline
+CALL dw.sp_seed_dim_feature();
 CALL dw.sp_load_staging_to_dw('2025-01-01');
 CALL dw.sp_load_staging_to_dw('2025-01-02');
 
