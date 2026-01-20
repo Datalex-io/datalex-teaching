@@ -2,7 +2,7 @@ CREATE OR REPLACE PROCEDURE dw.sp_seed_dim_feature()
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  TRUNCATE TABLE dw.dim_feature;
+  TRUNCATE TABLE dw.dim_feature CASCADE;
 
   INSERT INTO dw.dim_feature(feature_id, name, category, introduced_at)
   VALUES
