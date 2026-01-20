@@ -1,0 +1,183 @@
+id: phase2_orchestrate_batch_pipeline
+namespace: modern_data_stack.phase2
+
+description: |
+  Phase 2 – Orchestrate batch pipeline with Kestra
+  - Run Python extract (S3 → staging)
+  - Load staging → DWH
+  - Seed dim_feature
+  - Run everything for a given batch_date
+
+inputs:
+  - id: batch_date
+    type: STRING
+    required: true
+    defaults: "2025-01-01"
+    description: "Batch date (YYYY-MM-DD)"
+
+  # Option A: repo mounted in /workspace
+  - id: host_repo_path
+    type: STRING
+    required: true
+    defaults: "/Users/alexandrebergere/Repositories/Datalex/datalex-teaching-gitlab/modern-data-stack"
+    description: "ABSOLUTE path on the HOST to the repo (used for Docker bind mount)."
+
+  - id: python_script
+    type: STRING
+    required: false
+    defaults: "phase1.1/script/phase1_s3_to_staging.py"
+    description: "Relative path inside the repo."
+
+  # Analytics PostgreSQL
+  - id: pg_host
+    type: STRING
+    defaults: "host.docker.internal"
+
+  - id: pg_port
+    type: STRING
+    defaults: "5432"
+
+  - id: pg_db
+    type: STRING
+    defaults: "eseo"
+
+  - id: pg_user
+    type: STRING
+    defaults: "postgres"
+
+  - id: pg_password
+    type: STRING
+    defaults: "postgres"
+
+  # S3 / MinIO
+  - id: AWS_ACCESS_KEY_ID
+    type: STRING
+    defaults: "minioadmin"
+
+  - id: AWS_SECRET_ACCESS_KEY
+    type: STRING
+    defaults: "minioadmin"
+
+  - id: aws_region
+    type: STRING
+    defaults: "eu-central-1"
+
+  - id: s3_bucket
+    type: STRING
+    defaults: "eseo-modern-data-stack-phase1"
+
+  - id: s3_prefix
+    type: STRING
+    defaults: "saas-export"
+
+  - id: s3_endpoint_url
+    type: STRING
+    defaults: "http://host.docker.internal:9000"
+
+tasks:
+  # -----------------------------
+  # 1. Extract: S3 → Staging
+  # -----------------------------
+  - id: extract_s3_to_staging
+    type: io.kestra.plugin.scripts.python.Commands
+    containerImage: python:3.12-slim
+
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      volumes:
+        - "{{ inputs.host_repo_path }}:/workspace:ro"
+
+    beforeCommands:
+      - pip install --no-cache-dir boto3 psycopg2-binary
+
+    env:
+      BATCH_DATE: "{{ inputs.batch_date }}"
+      S3_BUCKET: "{{ inputs.s3_bucket }}"
+      S3_PREFIX: "{{ inputs.s3_prefix }}"
+      S3_ENDPOINT_URL: "{{ inputs.s3_endpoint_url }}"
+
+      AWS_REGION: "{{ inputs.aws_region }}"
+      AWS_DEFAULT_REGION: "{{ inputs.aws_region }}"
+
+      AWS_ACCESS_KEY_ID: "{{ inputs.AWS_ACCESS_KEY_ID }}"
+      AWS_SECRET_ACCESS_KEY: "{{ inputs.AWS_SECRET_ACCESS_KEY }}"
+
+      PG_DSN: "postgresql://{{ inputs.pg_user }}:{{ inputs.pg_password }}@{{ inputs.pg_host }}:{{ inputs.pg_port }}/{{ inputs.pg_db }}"
+
+    commands:
+      - python "/workspace/{{ inputs.python_script }}"
+
+
+
+  # -----------------------------
+  # 2. Seed dim_feature
+  # -----------------------------
+  - id: seed_dim_feature
+    type: io.kestra.plugin.jdbc.postgresql.Query
+
+    url: "jdbc:postgresql://{{ inputs.pg_host }}:{{ inputs.pg_port }}/{{ inputs.pg_db }}"
+    username: "{{ inputs.pg_user }}"
+    password: "{{ inputs.pg_password }}"
+
+    sql: |
+      CALL dw.sp_seed_dim_feature();
+
+  # -----------------------------
+  # 3. Load staging → DWH
+  # -----------------------------
+  - id: load_staging_to_dwh
+    type: io.kestra.plugin.jdbc.postgresql.Query
+
+    url: "jdbc:postgresql://{{ inputs.pg_host }}:{{ inputs.pg_port }}/{{ inputs.pg_db }}"
+    username: "{{ inputs.pg_user }}"
+    password: "{{ inputs.pg_password }}"
+
+    sql: |
+      CALL dw.sp_load_staging_to_dw('{{ inputs.batch_date }}');
+
+  # -----------------------------
+  # 4. Post run validation queries
+  # -----------------------------
+  - id: t4_post_run_validation
+    type: io.kestra.plugin.jdbc.postgresql.Query
+    description: "Post-run data quality checks (fail if critical tables are empty for the batch)."
+    url: "jdbc:postgresql://{{ inputs.pg_host }}:{{ inputs.pg_port }}/{{ inputs.pg_db }}"
+    username: "{{ inputs.pg_user }}"
+    password: "{{ inputs.pg_password }}"
+    sql: |
+      DO $$
+      DECLARE
+        v_tenants_count   BIGINT;
+        v_usage_count     BIGINT;
+        v_rejected_count  BIGINT;
+      BEGIN
+        -- Global dimension check
+        SELECT COUNT(*) INTO v_tenants_count
+        FROM dw.dim_tenant;
+
+        -- Fact table check for the current batch
+        SELECT COUNT(*) INTO v_usage_count
+        FROM dw.fact_feature_usage
+        WHERE date_id = (
+          SELECT date_id
+          FROM dw.dim_date
+          WHERE date = DATE '{{ inputs.batch_date }}'
+        );
+
+        -- Rejected rows for the batch (non-blocking)
+        SELECT COUNT(*) INTO v_rejected_count
+        FROM dq.rejected_rows
+        WHERE rejected_at = DATE '{{ inputs.batch_date }}';
+
+        RAISE NOTICE 'Tenants total: %', v_tenants_count;
+        RAISE NOTICE 'Usage events for batch %: %', '{{ inputs.batch_date }}', v_usage_count;
+        RAISE NOTICE 'Rejected rows for batch %: %', '{{ inputs.batch_date }}', v_rejected_count;
+
+        IF v_tenants_count = 0 THEN
+          RAISE EXCEPTION 'DQ CHECK FAILED: dw.dim_tenant is empty';
+        END IF;
+
+        IF v_usage_count = 0 THEN
+          RAISE EXCEPTION 'DQ CHECK FAILED: dw.fact_feature_usage has no data for batch %', '{{ inputs.batch_date }}';
+        END IF;
+      END $$;

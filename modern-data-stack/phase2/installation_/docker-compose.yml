@@ -1,0 +1,66 @@
+version: "3.8"
+
+services:
+  kestra:
+    image: kestra/kestra:latest
+    container_name: kestra
+    user: "0:0"
+    command: server standalone
+    ports:
+      - "8081:8080"
+
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra-postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: kestra
+
+        kestra:
+          server:
+            basic-auth:
+              enabled: false
+
+          repository:
+            type: postgres
+          queue:
+            type: postgres
+
+          storage:
+            type: local
+            local:
+              base-path: /app/storage
+
+          tasks:
+            tmp-dir:
+              path: /tmp/kestra-wd/tmp
+
+          plugins:
+            configurations:
+              - type: io.kestra.plugin.scripts.runner.docker.Docker
+                values:
+                  volume-enabled: true
+
+    volumes:
+      - kestra_storage:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/kestra-wd:/tmp/kestra-wd:rw
+
+    depends_on:
+      - kestra-postgres
+
+  kestra-postgres:
+    image: postgres:16
+    container_name: kestra-postgres
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: kestra
+    volumes:
+      - kestra_pg_data:/var/lib/postgresql/data
+
+volumes:
+  kestra_pg_data:
+  kestra_storage:
