@@ -125,34 +125,192 @@ pip install boto3
 
 Instead of using AWS credentials, we will attach an **IAM role** to the EC2 instance.
 
-Go to:
+# Step 5 — Give EC2 Permission to Access S3 (IAM Role)
+
+Your Flask application running on EC2 needs permission to access AWS services.
+
+Instead of storing AWS credentials in your code, we will use an **IAM Role attached to the EC2 instance**.
+
+This allows EC2 to securely access AWS services like S3.
+
+Architecture:
 
 ```
-IAM → Roles → Create role
+EC2 Instance
+   |
+   v
+IAM Role
+   |
+   v
+AWS S3
 ```
 
-Configuration:
+---
+
+# 5.1 — Create an IAM Role
+
+Go to the AWS Console.
+
+Navigate to:
 
 ```
-Trusted entity: EC2
-Permissions: AmazonS3ReadOnlyAccess
-Role name: EC2-S3-Flask-Role
+IAM → Roles
 ```
 
-Then attach the role to your EC2 instance:
+Click:
 
 ```
-EC2 → Instances → Select your instance
-Actions → Security → Modify IAM Role
+Create role
 ```
 
-Attach:
+---
+
+# 5.2 — Select Trusted Entity
+
+AWS asks which service will use this role.
+
+Select:
+
+```
+AWS Service
+```
+
+Then choose:
+
+```
+EC2
+```
+
+Click:
+
+```
+Next
+```
+
+---
+
+# 5.3 — Add Permissions
+
+Search for the following policy:
+
+```
+AmazonS3ReadOnlyAccess
+```
+
+Check the box next to the policy.
+
+This policy allows the EC2 instance to:
+
+```
+List objects in S3
+Read objects from S3
+```
+
+Click:
+
+```
+Next
+```
+
+---
+
+# 5.4 — Name the Role
+
+Give your role a name:
 
 ```
 EC2-S3-Flask-Role
 ```
 
-Your EC2 instance can now access S3 securely.
+Click:
+
+```
+Create role
+```
+
+Your IAM role is now created.
+
+---
+
+# 5.5 — Attach the Role to the EC2 Instance
+
+Now we must attach this role to the EC2 instance running your Flask application.
+
+Go to:
+
+```
+EC2 → Instances
+```
+
+Select your EC2 instance.
+
+Click:
+
+```
+Actions → Security → Modify IAM Role
+```
+
+In the dropdown menu, select:
+
+```
+EC2-S3-Flask-Role
+```
+
+Click:
+
+```
+Update IAM role
+```
+
+Your EC2 instance now has permission to access S3.
+
+---
+
+# 5.6 — Verify the Role Works
+
+Connect to your EC2 instance:
+
+```
+ssh -i key.pem ubuntu@YOUR_PUBLIC_IP
+```
+
+Activate your Python virtual environment:
+
+```
+source venv/bin/activate
+```
+
+Run a quick Python test:
+
+```python
+import boto3
+
+s3 = boto3.client("s3")
+
+response = s3.list_buckets()
+
+print(response)
+```
+
+If the IAM role is correctly configured, you should see a list of your S3 buckets.
+
+---
+
+# Why We Use IAM Roles
+
+Using IAM roles is the **recommended AWS security practice**.
+
+Do NOT store AWS credentials like this in your code:
+
+```
+aws_access_key_id = "..."
+aws_secret_access_key = "..."
+```
+
+IAM roles allow AWS to automatically provide temporary credentials to the EC2 instance.
+
+This is more secure and easier to manage.
+
 
 ---
 
