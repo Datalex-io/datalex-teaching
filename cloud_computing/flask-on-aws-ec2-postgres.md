@@ -73,24 +73,6 @@ Create a user:
 CREATE USER flaskuser WITH PASSWORD 'password';
 ```
 
-Give privileges to the user:
-
-```
-GRANT ALL PRIVILEGES ON DATABASE flaskdb TO flaskuser;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO flaskuser;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO flaskuser;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT ALL ON TABLES TO flaskuser;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT ALL ON SEQUENCES TO flaskuser;
-
-OR
-
-ALTER DATABASE flaskdb OWNER TO flaskuser;
-```
-
 Exit PostgreSQL:
 
 ```
@@ -136,6 +118,12 @@ Verify the data:
 
 ```
 SELECT * FROM users;
+```
+
+Give privileges to the user:
+
+```
+GRANT ALL PRIVILEGES ON TABLE users TO flaskuser;
 ```
 
 Exit PostgreSQL:
